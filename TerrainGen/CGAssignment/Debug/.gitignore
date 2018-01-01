@@ -1,0 +1,11 @@
+
+*.ilk
+*.lastbuildstate
+*.log
+*.manifest
+*.obj
+*.pdb
+*.rc
+*.res
+*.tlog
+*.idb

@@ -1,0 +1,112 @@
+#version 150
+
+//Model variables
+uniform	vec3	angles;
+uniform	vec3	trans;
+uniform	vec3	scale;
+
+//View variables
+uniform vec3	eye;
+uniform vec3	target;
+uniform vec3	up;
+
+//Projection variables
+uniform vec4	projectionVars;
+
+// Incoming per vertex
+in 		vec4 	vVertex;
+in 		vec4 	vNormal;
+out		vec4	normal;
+
+// Outgoing per vertex
+out		mat4	model;
+out		mat4	view;
+out		mat4	persp;
+
+mat4 constructModelMat( void )
+{
+    vec3 theta = radians(angles);
+    vec3 c = cos (theta);
+    vec3 s = sin (theta);
+	
+	//rotation around x
+	mat4 rx = mat4 (1.0,  0.0,  0.0,  0.0, 
+                    0.0,  c.x,  s.x,  0.0,
+                    0.0, -s.x,  c.x,  0.0,
+                    0.0,  0.0,  0.0,  1.0);
+    
+	//rotation around y	
+    mat4 ry = mat4 (c.y,  0.0, -s.y,  0.0, 
+                    0.0,  1.0,  0.0,  0.0,
+                    s.y,  0.0,  c.y,  0.0,
+                    0.0,  0.0,  0.0,  1.0);
+
+	//rotation around z
+    mat4 rz = mat4 (c.z, -s.z,  0.0,  0.0, 
+                    s.z,  c.z,  0.0,  0.0,
+                    0.0,  0.0,  1.0,  0.0,
+                    0.0,  0.0,  0.0,  1.0);
+
+	//translation matrix
+    mat4 transMat = mat4 ( 1.0, 0.0, 0.0, 0.0,
+					0.0, 1.0, 0.0, 0.0,
+					0.0, 0.0, 1.0, 0.0,
+					trans.x, trans.y, trans.z, 1.0);
+    
+	//scale matrix
+    mat4 scaleMat = mat4 (scale.x,  0.0,     0.0,     0.0,
+                          0.0,      scale.y, 0.0,     0.0, 
+                          0.0,      0.0,     scale.z, 0.0,
+                          0.0,      0.0,     0.0,     1.0);
+
+	return transMat * rz * ry * rx * scaleMat;
+}
+
+mat4 constructViewMat( vec3 eye, vec3 target, vec3 up )
+{
+	mat4 viewMat = mat4(0.0);
+	vec3 n1 = normalize( eye - target ); 
+	vec3 u1 = normalize( cross(up, n1) ); 
+	vec3 v1 = normalize( cross(n1, u1 ) ); 
+	vec4 u = vec4( u1, dot(-1.0 * u1, eye) );
+	vec4 v = vec4( v1, dot(-1.0 * v1, eye) );
+	vec4 n = vec4( n1, dot(-1.0 * n1, eye) );
+
+	viewMat[0] = u;
+	viewMat[1] = v;
+	viewMat[2] = n;
+	viewMat[3] = vec4( 0.0, 0.0, 0.0, 1.0);
+	return transpose( viewMat );
+}
+
+mat4 constructPerspMat( float fov, float aspect, float near, float far )
+{
+	// http://code.google.com/p/oglsuperbible5/source/browse/trunk/Src/GLTools/?r=179
+	// Got derivations from GLTools code provided at: 
+	float top = near * tan(0.5 * (fov * 3.14159265 / 360.0));
+	float bottom = -top;
+	float left = aspect * bottom;
+	float right = aspect * top;
+
+	mat4 pMat = mat4(0.0);
+	pMat[0][0] = (2.0 * near)/(right - left);
+	pMat[1][1] = (2.0 * near)/(top - bottom);
+	pMat[2][0] = (right + left) / (right - left);
+	pMat[2][1] = (top + bottom) / (top - bottom);
+	pMat[2][2] = -((far + near)/(far - near));
+	pMat[2][3] = -1.0;
+	pMat[3][2] = -((2.0 * far * near)/(far - near));
+	
+	return pMat;
+}
+
+void main(void) 
+{ 
+	//Calculate Matrices
+	model = constructModelMat( );
+	view = constructViewMat( eye, target, up );
+	persp = constructPerspMat( projectionVars[0], projectionVars[1], projectionVars[2], projectionVars[3] );
+	
+	normal = vNormal;
+	gl_Position = vVertex;
+}
